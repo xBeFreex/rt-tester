@@ -1,12 +1,13 @@
 using Google.Protobuf;
+using rt_tester.Configuration;
 using rt_tester.Models;
 using TransitRealtime;
 
 namespace rt_tester.Detection;
 
-public sealed class TripUpdateComparer(PrefixResolver resolver)
+public sealed class TripUpdateComparer(PrefixResolver resolver, AggregatorConfig config, EntityHistoryTracker history)
 {
-    public List<FindingDraft> Compare(FeedMessage merged, Dictionary<string, FeedMessage> sourcesByAgency)
+    public List<FindingDraft> Compare(FeedMessage merged, Dictionary<string, FeedMessage> sourcesByAgency, DateTime nowUtc)
     {
         var findings = new List<FindingDraft>();
         var sourceIndexByAgency = sourcesByAgency.ToDictionary(kv => kv.Key, kv => EntityIndex.BuildTripUpdates(kv.Value));
@@ -57,6 +58,13 @@ public sealed class TripUpdateComparer(PrefixResolver resolver)
                     "UNKNOWN_TRIP_ID", null, JsonFormatter.Default.Format(entity)));
             }
 
+            if (expectedAgency is not null && tu.HasTimestamp)
+            {
+                CheckGhostEntity(expectedAgency, entity, tu.Timestamp, nowUtc, findings);
+                if (!string.IsNullOrEmpty(originalTripId))
+                    CheckTimestampRegression(expectedAgency, originalTripId, entity, tu.Timestamp, findings);
+            }
+
             if (expectedAgency is null) continue;
             if (!sourceIndexByAgency.TryGetValue(expectedAgency, out var sourceIndex)) continue;
 
@@ -69,8 +77,34 @@ public sealed class TripUpdateComparer(PrefixResolver resolver)
             CompareFields(expectedAgency, entity, sourceEntity, findings);
         }
 
-        DetectMissingInMerged(sourcesByAgency, covered, findings);
+        DetectMissingInMerged(sourcesByAgency, covered, findings, nowUtc);
         return findings;
+    }
+
+    private void CheckGhostEntity(string agencyId, FeedEntity entity, ulong mergedTimestamp, DateTime nowUtc, List<FindingDraft> findings)
+    {
+        var ageHours = (nowUtc - DateTimeOffset.FromUnixTimeSeconds((long)mergedTimestamp).UtcDateTime).TotalHours;
+        if (ageHours < config.GhostEntityThresholdHours) return;
+
+        findings.Add(new FindingDraft(FeedType.TripUpdates, MismatchCategory.StaleGhostEntityInMerged, Severity.Error,
+            agencyId, entity.Id, "timestamp", null, mergedTimestamp.ToString(),
+            $"Merged TripUpdate '{entity.Id}' (agency '{agencyId}') carries a timestamp {ageHours:F1}h old - the merge step " +
+            "never expired/removed it. This is likely what downstream consumers (e.g. Google) flag as stale/old data.",
+            null, null, JsonFormatter.Default.Format(entity)));
+    }
+
+    private void CheckTimestampRegression(string agencyId, string tripId, FeedEntity entity, ulong mergedTimestamp, List<FindingDraft> findings)
+    {
+        var ts = (long)mergedTimestamp;
+        var previousHigh = history.CheckAndUpdateWatermark(FeedTypeKind.TripUpdate, agencyId, tripId, ts);
+        if (previousHigh is null) return;
+
+        findings.Add(new FindingDraft(FeedType.TripUpdates, MismatchCategory.MergedTimestampRegression, Severity.Error,
+            agencyId, entity.Id, "timestamp", previousHigh.Value.ToString(), ts.ToString(),
+            $"Merged feed republished TripUpdate '{entity.Id}' (trip '{tripId}', agency '{agencyId}') with an older timestamp " +
+            $"({ts}) after it had already published a newer one ({previousHigh}) for the same trip - looks like a stale " +
+            "cached copy got re-emitted out of order.",
+            null, null, JsonFormatter.Default.Format(entity)));
     }
 
     private void CompareFields(string agencyId, FeedEntity mergedEntity, FeedEntity sourceEntity, List<FindingDraft> findings)
@@ -125,7 +159,13 @@ public sealed class TripUpdateComparer(PrefixResolver resolver)
                     null, sourceJson, mergedJson));
             }
 
-            if (s.Arrival?.Time != m.Arrival?.Time || s.Departure?.Time != m.Departure?.Time)
+            var arrivalDelta = s.Arrival is not null && m.Arrival is not null ? Math.Abs(s.Arrival.Time - m.Arrival.Time) : (long?)null;
+            var departureDelta = s.Departure is not null && m.Departure is not null ? Math.Abs(s.Departure.Time - m.Departure.Time) : (long?)null;
+            var withinTolerance =
+                (s.Arrival?.Time == m.Arrival?.Time || (arrivalDelta is not null && arrivalDelta <= config.MergeLagToleranceSeconds)) &&
+                (s.Departure?.Time == m.Departure?.Time || (departureDelta is not null && departureDelta <= config.MergeLagToleranceSeconds));
+
+            if (!withinTolerance && (s.Arrival?.Time != m.Arrival?.Time || s.Departure?.Time != m.Departure?.Time))
             {
                 findings.Add(new FindingDraft(FeedType.TripUpdates, MismatchCategory.FieldMutated, Severity.Warning,
                     agencyId, mergedEntity.Id, $"stop_time_update[{i}].arrival/departure", $"{s.Arrival?.Time}/{s.Departure?.Time}",
@@ -181,7 +221,8 @@ public sealed class TripUpdateComparer(PrefixResolver resolver)
     }
 
     private void DetectMissingInMerged(
-        Dictionary<string, FeedMessage> sourcesByAgency, HashSet<(string Agency, string TripId)> covered, List<FindingDraft> findings)
+        Dictionary<string, FeedMessage> sourcesByAgency, HashSet<(string Agency, string TripId)> covered,
+        List<FindingDraft> findings, DateTime nowUtc)
     {
         foreach (var (agencyId, sourceFeed) in sourcesByAgency)
         {
@@ -189,12 +230,21 @@ public sealed class TripUpdateComparer(PrefixResolver resolver)
             {
                 if (entity.TripUpdate is null) continue;
                 var tripId = entity.TripUpdate.Trip?.TripId;
-                if (string.IsNullOrEmpty(tripId) || covered.Contains((agencyId, tripId))) continue;
+                if (string.IsNullOrEmpty(tripId)) continue;
+
+                if (covered.Contains((agencyId, tripId)))
+                {
+                    history.ClearPending(FeedTypeKind.TripUpdate, agencyId, tripId);
+                    continue;
+                }
+
+                var pendingSince = history.MarkPendingIfNew(FeedTypeKind.TripUpdate, agencyId, tripId, nowUtc);
+                if ((nowUtc - pendingSince).TotalSeconds < config.MissingInMergedGraceSeconds) continue;
 
                 findings.Add(new FindingDraft(FeedType.TripUpdates, MismatchCategory.MissingInMerged, Severity.Error,
                     agencyId, entity.Id, null, JsonFormatter.Default.Format(entity), null,
-                    $"Source TripUpdate '{entity.Id}' (trip '{tripId}', agency '{agencyId}') has no corresponding entity " +
-                    "in the merged feed - the merge step dropped it.",
+                    $"Source TripUpdate '{entity.Id}' (trip '{tripId}', agency '{agencyId}') has had no corresponding entity " +
+                    $"in the merged feed for over {config.MissingInMergedGraceSeconds}s - the merge step dropped it.",
                     null, JsonFormatter.Default.Format(entity), null));
             }
         }

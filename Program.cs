@@ -18,6 +18,7 @@ builder.Services.AddDbContextFactory<DiagnosticsDbContext>(o => o.UseSqlite($"Da
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<FeedClient>();
 builder.Services.AddSingleton<PrefixResolver>();
+builder.Services.AddSingleton<EntityHistoryTracker>();
 builder.Services.AddSingleton<VehiclePositionComparer>();
 builder.Services.AddSingleton<TripUpdateComparer>();
 builder.Services.AddSingleton<AlertComparer>();

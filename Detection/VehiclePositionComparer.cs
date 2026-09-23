@@ -9,9 +9,9 @@ namespace rt_tester.Detection;
 /// Compares the merged VehiclePositions feed against each agency's original source
 /// feed, reporting only discrepancies introduced by the merge/prefixing step.
 /// </summary>
-public sealed class VehiclePositionComparer(PrefixResolver resolver, AggregatorConfig config)
+public sealed class VehiclePositionComparer(PrefixResolver resolver, AggregatorConfig config, EntityHistoryTracker history)
 {
-    public List<FindingDraft> Compare(FeedMessage merged, Dictionary<string, FeedMessage> sourcesByAgency)
+    public List<FindingDraft> Compare(FeedMessage merged, Dictionary<string, FeedMessage> sourcesByAgency, DateTime nowUtc)
     {
         var findings = new List<FindingDraft>();
         var sourceIndexByAgency = sourcesByAgency.ToDictionary(kv => kv.Key, kv => EntityIndex.BuildVehiclePositions(kv.Value));
@@ -32,6 +32,14 @@ public sealed class VehiclePositionComparer(PrefixResolver resolver, AggregatorC
 
             var (expectedAgency, originalTripId, prefixFinding) = ResolveAgencyAndCheckPrefixConsistency(entity, tripId, stopId);
             if (prefixFinding is not null) findings.Add(prefixFinding);
+
+            if (expectedAgency is not null && vp.HasTimestamp)
+            {
+                CheckGhostEntity(expectedAgency, entity, vp.Timestamp, nowUtc, findings);
+                if (!string.IsNullOrEmpty(originalTripId))
+                    CheckTimestampRegression(expectedAgency, originalTripId, entity, vp.Timestamp, findings);
+            }
+
             if (expectedAgency is null) continue;
             if (!sourceIndexByAgency.TryGetValue(expectedAgency, out var sourceIndex)) continue;
 
@@ -45,9 +53,36 @@ public sealed class VehiclePositionComparer(PrefixResolver resolver, AggregatorC
             CompareFields(expectedAgency, entity, sourceEntity, findings);
         }
 
-        DetectMissingInMerged(sourcesByAgency, coveredSourceTripKeys, findings);
+        DetectMissingInMerged(sourcesByAgency, coveredSourceTripKeys, findings, nowUtc);
 
         return findings;
+    }
+
+    private void CheckGhostEntity(string agencyId, FeedEntity entity, ulong mergedTimestamp, DateTime nowUtc, List<FindingDraft> findings)
+    {
+        var ageHours = (nowUtc - DateTimeOffset.FromUnixTimeSeconds((long)mergedTimestamp).UtcDateTime).TotalHours;
+        if (ageHours < config.GhostEntityThresholdHours) return;
+
+        findings.Add(new FindingDraft(FeedType.VehiclePositions, MismatchCategory.StaleGhostEntityInMerged, Severity.Error,
+            agencyId, entity.Id, "timestamp", null, mergedTimestamp.ToString(),
+            $"Merged VehiclePosition '{entity.Id}' (agency '{agencyId}') carries a timestamp {ageHours:F1}h old - the merge " +
+            "step never expired/removed it, even though it's long stale. This is likely what downstream consumers " +
+            "(e.g. Google) flag as 'data from two days ago'.",
+            null, null, JsonFormatter.Default.Format(entity)));
+    }
+
+    private void CheckTimestampRegression(string agencyId, string tripId, FeedEntity entity, ulong mergedTimestamp, List<FindingDraft> findings)
+    {
+        var ts = (long)mergedTimestamp;
+        var previousHigh = history.CheckAndUpdateWatermark(FeedTypeKind.VehiclePosition, agencyId, tripId, ts);
+        if (previousHigh is null) return;
+
+        findings.Add(new FindingDraft(FeedType.VehiclePositions, MismatchCategory.MergedTimestampRegression, Severity.Error,
+            agencyId, entity.Id, "timestamp", previousHigh.Value.ToString(), ts.ToString(),
+            $"Merged feed republished VehiclePosition '{entity.Id}' (trip '{tripId}', agency '{agencyId}') with an older " +
+            $"timestamp ({ts}) after it had already published a newer one ({previousHigh}) for the same trip - looks like " +
+            "a stale cached copy got re-emitted out of order.",
+            null, null, JsonFormatter.Default.Format(entity)));
     }
 
     private (string? Agency, string? OriginalTripId, FindingDraft? Finding) ResolveAgencyAndCheckPrefixConsistency(
@@ -127,10 +162,15 @@ public sealed class VehiclePositionComparer(PrefixResolver resolver, AggregatorC
             Check("occupancy_status", source.OccupancyStatus.ToString(), merged.OccupancyStatus.ToString(),
                 $"Merge altered occupancy_status for vehicle '{mergedEntity.Id}' (agency '{agencyId}').");
 
+        var withinLagTolerance = false;
+
         if (source.HasTimestamp != merged.HasTimestamp || (source.HasTimestamp && source.Timestamp != merged.Timestamp))
         {
             var sourceAge = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - (long)source.Timestamp;
             var mergedAge = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - (long)merged.Timestamp;
+            var delta = source.HasTimestamp && merged.HasTimestamp ? Math.Abs((long)source.Timestamp - (long)merged.Timestamp) : long.MaxValue;
+            withinLagTolerance = delta <= config.MergeLagToleranceSeconds;
+
             if (source.HasTimestamp && mergedAge > config.StaleThresholdSeconds && sourceAge <= config.StaleThresholdSeconds)
             {
                 findings.Add(new FindingDraft(FeedType.VehiclePositions, MismatchCategory.MergeIntroducedStaleTimestamp, Severity.Warning,
@@ -140,7 +180,7 @@ public sealed class VehiclePositionComparer(PrefixResolver resolver, AggregatorC
                     "reports as INVALID_VEHICLE_POSITION_STALE_TIMESTAMP / VEHICLE_POSITION_TIMESTAMP_CONSISTENTLY_IN_THE_PAST.",
                     "INVALID_VEHICLE_POSITION_STALE_TIMESTAMP", sourceJson, mergedJson));
             }
-            else
+            else if (!withinLagTolerance)
             {
                 Check("timestamp", source.Timestamp.ToString(), merged.Timestamp.ToString(),
                     $"Merge altered timestamp for vehicle '{mergedEntity.Id}' (agency '{agencyId}').");
@@ -168,8 +208,9 @@ public sealed class VehiclePositionComparer(PrefixResolver resolver, AggregatorC
 
         if (source.Position is not null && merged.Position is not null)
         {
-            if (Math.Abs(source.Position.Latitude - merged.Position.Latitude) > 0.0001 ||
-                Math.Abs(source.Position.Longitude - merged.Position.Longitude) > 0.0001)
+            if (!withinLagTolerance &&
+                (Math.Abs(source.Position.Latitude - merged.Position.Latitude) > 0.0001 ||
+                 Math.Abs(source.Position.Longitude - merged.Position.Longitude) > 0.0001))
             {
                 Check("position.lat/lon",
                     $"{source.Position.Latitude},{source.Position.Longitude}",
@@ -248,7 +289,8 @@ public sealed class VehiclePositionComparer(PrefixResolver resolver, AggregatorC
     private void DetectMissingInMerged(
         Dictionary<string, FeedMessage> sourcesByAgency,
         HashSet<(string Agency, string TripId)> covered,
-        List<FindingDraft> findings)
+        List<FindingDraft> findings,
+        DateTime nowUtc)
     {
         foreach (var (agencyId, sourceFeed) in sourcesByAgency)
         {
@@ -257,12 +299,20 @@ public sealed class VehiclePositionComparer(PrefixResolver resolver, AggregatorC
                 if (entity.Vehicle is null) continue;
                 var tripId = entity.Vehicle.Trip?.TripId;
                 if (string.IsNullOrEmpty(tripId)) continue;
-                if (covered.Contains((agencyId, tripId))) continue;
+
+                if (covered.Contains((agencyId, tripId)))
+                {
+                    history.ClearPending(FeedTypeKind.VehiclePosition, agencyId, tripId);
+                    continue;
+                }
+
+                var pendingSince = history.MarkPendingIfNew(FeedTypeKind.VehiclePosition, agencyId, tripId, nowUtc);
+                if ((nowUtc - pendingSince).TotalSeconds < config.MissingInMergedGraceSeconds) continue;
 
                 findings.Add(new FindingDraft(FeedType.VehiclePositions, MismatchCategory.MissingInMerged, Severity.Error,
                     agencyId, entity.Id, null, JsonFormatter.Default.Format(entity), null,
-                    $"Source VehiclePosition '{entity.Id}' (trip '{tripId}', agency '{agencyId}') has no corresponding " +
-                    "entity in the merged feed - the merge step dropped it.",
+                    $"Source VehiclePosition '{entity.Id}' (trip '{tripId}', agency '{agencyId}') has had no corresponding " +
+                    $"entity in the merged feed for over {config.MissingInMergedGraceSeconds}s - the merge step dropped it.",
                     null, JsonFormatter.Default.Format(entity), null));
             }
         }

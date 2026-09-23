@@ -37,14 +37,14 @@ public sealed class MergeDiagnosticsEngine(
         {
             var sources = CollectOkSources(snapshot.VehiclePositionsByAgency);
             if (sources.Count > 0)
-                drafts.AddRange(vpComparer.Compare(mvp.Feed, sources));
+                drafts.AddRange(vpComparer.Compare(mvp.Feed, sources, nowUtc));
         }
 
         if (snapshot.MergedTripUpdates is { Ok: true, Feed: not null } mtu)
         {
             var sources = CollectOkSources(snapshot.TripUpdatesByAgency);
             if (sources.Count > 0)
-                drafts.AddRange(tuComparer.Compare(mtu.Feed, sources));
+                drafts.AddRange(tuComparer.Compare(mtu.Feed, sources, nowUtc));
         }
 
         if (snapshot.MergedAlerts is { Ok: true, Feed: not null } malerts)

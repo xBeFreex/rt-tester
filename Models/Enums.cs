@@ -16,7 +16,9 @@ public enum MismatchCategory
     FieldMutated,
     MergeIntroducedStaleTimestamp,
     BadStartTimeIntroduced,
-    FetchError
+    FetchError,
+    MergedTimestampRegression,
+    StaleGhostEntityInMerged
 }
 
 public enum Severity

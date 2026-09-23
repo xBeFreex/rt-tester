@@ -9,3 +9,4 @@ obj/
 .tmpwork/
 .grepout.txt
 deploy.sh
+.claude/

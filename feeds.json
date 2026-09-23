@@ -1,0 +1,121 @@
+{
+  "Aggregator": {
+    "pollIntervalSeconds": 30,
+    "httpTimeoutSeconds": 20,
+    "staleThresholdSeconds": 90,
+    "historyRetentionHours": 72,
+    "prefixSeparator": "_",
+    "agencies": [
+      {
+        "agencyId": "43",
+        "vehiclePositionsUrl": "https://www.stops.lt/panevezys/gtfs_realtime.pb",
+        "tripUpdatesUrl": "https://www.stops.lt/panevezys/gtfs_realtime.pb",
+        "alertsUrl": null,
+        "agencyName": "Panevėžys"
+      },
+      {
+        "agencyId": "62",
+        "vehiclePositionsUrl": "https://www.stops.lt/kaunas/vehicle_positions.pb",
+        "tripUpdatesUrl": "https://www.stops.lt/kaunas/trip_updates.pb",
+        "alertsUrl": "https://www.stops.lt/kaunas/service_alerts.pb",
+        "agencyName": "Kaunas"
+      },
+      {
+        "agencyId": "61",
+        "vehiclePositionsUrl": "https://trcapi.dutrys.com/api/v3/buckets/70/gtfsrt/marijampole/vehicle_positions.pb",
+        "tripUpdatesUrl": "https://trcapi.dutrys.com/api/v3/buckets/70/gtfsrt/marijampole/trip_updates.pb",
+        "alertsUrl": "https://trcapi.dutrys.com/api/v3/buckets/70/gtfsrt/marijampole/alerts.pb",
+        "agencyName": "Marijampolė"
+      },
+      {
+        "agencyId": "26",
+        "vehiclePositionsUrl": "https://trcapi.dutrys.com/api/v3/buckets/91/gtfsrt/plunge/vehicle_positions.pb",
+        "tripUpdatesUrl": "https://trcapi.dutrys.com/api/v3/buckets/91/gtfsrt/plunge/trip_updates.pb",
+        "alertsUrl": "https://trcapi.dutrys.com/api/v3/buckets/91/gtfsrt/plunge/alerts.pb",
+        "agencyName": "Plungė"
+      },
+      {
+        "agencyId": "48",
+        "vehiclePositionsUrl": "https://www.stops.lt/dzukija/gtfs_realtime_alytusraj.pb",
+        "tripUpdatesUrl": "https://www.stops.lt/dzukija/gtfs_realtime_alytusraj.pb",
+        "alertsUrl": null,
+        "agencyName": "Alytaus r."
+      },
+      {
+        "agencyId": "60",
+        "vehiclePositionsUrl": "https://www.stops.lt/dzukija/gtfs_realtime_druskininkai.pb",
+        "tripUpdatesUrl": "https://www.stops.lt/dzukija/gtfs_realtime_druskininkai.pb",
+        "alertsUrl": null,
+        "agencyName": "Druskininkai"
+      },
+      {
+        "agencyId": "58",
+        "vehiclePositionsUrl": "https://trcapi.dutrys.com/api/v3/buckets/1/gtfsrt/birstonas/vehicle_positions.pb",
+        "tripUpdatesUrl": "https://trcapi.dutrys.com/api/v3/buckets/1/gtfsrt/birstonas/trip_updates.pb",
+        "alertsUrl": null,
+        "agencyName": "Birštonas"
+      },
+      {
+        "agencyId": "57",
+        "vehiclePositionsUrl": "https://trcapi.dutrys.com/api/v3/buckets/51/gtfsrt/jonava/vehicle_positions.pb",
+        "tripUpdatesUrl": "https://trcapi.dutrys.com/api/v3/buckets/51/gtfsrt/jonava/trip_updates.pb",
+        "alertsUrl": null,
+        "agencyName": "Jonava"
+      },
+      {
+        "agencyId": "51",
+        "vehiclePositionsUrl": "https://www.stops.lt/dzukija/gtfs_realtime_varena.pb",
+        "tripUpdatesUrl": "https://www.stops.lt/dzukija/gtfs_realtime_varena.pb",
+        "alertsUrl": null,
+        "agencyName": "Varėna"
+      },
+      {
+        "agencyId": "7",
+        "vehiclePositionsUrl": "https://www.stops.lt/dzukija/gtfs_realtime_lazdijai.pb",
+        "tripUpdatesUrl": "https://www.stops.lt/dzukija/gtfs_realtime_lazdijai.pb",
+        "alertsUrl": null,
+        "agencyName": "Lazdijai"
+      },
+      {
+        "agencyId": "45",
+        "vehiclePositionsUrl": "https://www.stops.lt/dzukija/gtfs_realtime_alytus.pb",
+        "tripUpdatesUrl": "https://www.stops.lt/dzukija/gtfs_realtime_alytus.pb",
+        "alertsUrl": null,
+        "agencyName": "Alytus"
+      },
+      {
+        "agencyId": "59",
+        "vehiclePositionsUrl": "https://www.stops.lt/vilnius/vehicle_positions.pb",
+        "tripUpdatesUrl": "https://www.stops.lt/vilnius/trip_updates.pb",
+        "alertsUrl": "https://www.stops.lt/vilnius/service_alerts.pb",
+        "agencyName": "Vilnius"
+      },
+      {
+        "agencyId": "63",
+        "vehiclePositionsUrl": "https://www.stops.lt/klaipeda/gtfs_realtime.pb",
+        "tripUpdatesUrl": "https://www.stops.lt/klaipeda/trip_updates.pb",
+        "alertsUrl": "https://www.stops.lt/klaipeda/service_alerts.pb",
+        "agencyName": "Klaipėda"
+      },
+      {
+        "agencyId": "55",
+        "vehiclePositionsUrl": "https://gtfs-rt.ciskauskas.lt/feed/zarasu-bustas/vehicle-positions.pb",
+        "tripUpdatesUrl": "https://gtfs-rt.ciskauskas.lt/feed/zarasu-bustas/trip-updates.pb",
+        "alertsUrl": "https://gtfs-rt.ciskauskas.lt/feed/zarasu-bustas/service-alerts.pb",
+        "agencyName": "Zarasai"
+      },
+      {
+        "agencyId": "14",
+        "vehiclePositionsUrl": "https://trcapi.dutrys.com/api/v3/buckets/1/gtfsrt/kaunorajonas/vehicle_positions.pb",
+        "tripUpdatesUrl": "https://trcapi.dutrys.com/api/v3/buckets/1/gtfsrt/kaunorajonas/trip_updates.pb",
+        "alertsUrl": null,
+        "agencyName": "Kauno r."
+      }
+    ],
+    "merged": {
+      "vehiclePositionsUrl": "https://visimarsrutai.lt/gtfs-realtime/vehicle_positions.pb",
+      "tripUpdatesUrl": "https://visimarsrutai.lt/gtfs-realtime/trip_updates.pb",
+      "alertsUrl": "https://visimarsrutai.lt/gtfs-realtime/service_alerts.pb"
+    }
+  }
+}

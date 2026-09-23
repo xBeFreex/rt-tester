@@ -1,0 +1,16 @@
+services:
+  rt-tester:
+    image: ghcr.io/xbefreex/rt-tester:latest
+    build: .
+    container_name: rt-tester
+    restart: unless-stopped
+    ports:
+      - "5028:5028"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - RT_TESTER_DB_PATH=/data/rt-tester.db
+    volumes:
+      - rt-tester-data:/data
+
+volumes:
+  rt-tester-data:

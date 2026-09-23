@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>GTFS-RT Merge Diagnostics</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>GTFS-RT Merge Diagnostics</h1>
+    <div id="status">loading...</div>
+  </header>
+
+  <div class="filters">
+    <select id="severity">
+      <option value="">All severities</option>
+      <option value="Error">Error</option>
+      <option value="Warning">Warning</option>
+      <option value="Info">Info</option>
+    </select>
+    <select id="category">
+      <option value="">All categories</option>
+      <option value="InconsistentIdPrefix">Inconsistent id prefix</option>
+      <option value="PrefixCollision">Prefix collision</option>
+      <option value="DuplicatedInMerged">Duplicated in merged</option>
+      <option value="MissingInMerged">Missing in merged</option>
+      <option value="FieldMutated">Field mutated</option>
+      <option value="MergeIntroducedStaleTimestamp">Merge-introduced stale timestamp</option>
+      <option value="BadStartTimeIntroduced">Bad start time introduced</option>
+      <option value="FetchError">Fetch error</option>
+    </select>
+    <select id="feedType">
+      <option value="">All feed types</option>
+      <option value="VehiclePositions">VehiclePositions</option>
+      <option value="TripUpdates">TripUpdates</option>
+      <option value="Alerts">Alerts</option>
+    </select>
+    <input id="agency" placeholder="Agency id" />
+    <select id="sinceHours">
+      <option value="1">Last hour</option>
+      <option value="24" selected>Last 24h</option>
+      <option value="72">Last 72h</option>
+      <option value="">All retained</option>
+    </select>
+  </div>
+
+  <main>
+    <table>
+      <thead>
+        <tr>
+          <th>Last seen</th>
+          <th>Severity</th>
+          <th>Category</th>
+          <th>Feed</th>
+          <th>Agency</th>
+          <th>Entity</th>
+          <th>Field</th>
+          <th>Validator code</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div id="empty" class="empty" style="display:none">No merge-introduced findings for the current filters.</div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

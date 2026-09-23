@@ -5,6 +5,18 @@ const statusEl = document.getElementById("status");
 const filterIds = ["severity", "category", "feedType", "agency", "sinceHours"];
 filterIds.forEach(id => document.getElementById(id).addEventListener("change", load));
 
+document.querySelectorAll(".quicknav button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    if (btn.dataset.reset) {
+      filterIds.forEach(id => { document.getElementById(id).value = ""; });
+      document.getElementById("sinceHours").value = "24";
+    } else if (btn.dataset.category) {
+      document.getElementById("category").value = btn.dataset.category;
+    }
+    load();
+  });
+});
+
 function buildQuery() {
   const params = new URLSearchParams();
   for (const id of filterIds) {

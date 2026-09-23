@@ -33,6 +33,42 @@ header h1 { font-size: 1.1rem; margin: 0; }
 
 #status { font-size: 0.85rem; color: var(--muted); }
 
+.quicknav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.quicknav button {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.quicknav button:hover { border-color: var(--info); color: var(--info); }
+
+.quicknav .nav-sep {
+  width: 1px;
+  height: 1.2rem;
+  background: var(--border);
+  margin: 0 0.25rem;
+}
+
+.quicknav a {
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-decoration: none;
+}
+
+.quicknav a:hover { color: var(--info); }
+
 .filters {
   display: flex;
   gap: 0.5rem;

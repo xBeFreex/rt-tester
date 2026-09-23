@@ -11,6 +11,22 @@
     <div id="status">loading...</div>
   </header>
 
+  <nav class="quicknav">
+    <button type="button" data-reset="1">All findings</button>
+    <button type="button" data-category="FieldMutated">Field mutated</button>
+    <button type="button" data-category="MissingInMerged">Missing in merged</button>
+    <button type="button" data-category="DuplicatedInMerged">Duplicated in merged</button>
+    <button type="button" data-category="PrefixCollision">Prefix collision</button>
+    <button type="button" data-category="InconsistentIdPrefix">Inconsistent prefix</button>
+    <button type="button" data-category="MergedTimestampRegression">Timestamp regression</button>
+    <button type="button" data-category="StaleGhostEntityInMerged">Ghost entity</button>
+    <button type="button" data-category="BadStartTimeIntroduced">Bad start time</button>
+    <button type="button" data-category="FetchError">Fetch error</button>
+    <span class="nav-sep"></span>
+    <a href="/api/health" target="_blank" rel="noopener">Health (raw)</a>
+    <a href="/api/runs" target="_blank" rel="noopener">Runs (raw)</a>
+  </nav>
+
   <div class="filters">
     <select id="severity">
       <option value="">All severities</option>
@@ -26,6 +42,8 @@
       <option value="MissingInMerged">Missing in merged</option>
       <option value="FieldMutated">Field mutated</option>
       <option value="MergeIntroducedStaleTimestamp">Merge-introduced stale timestamp</option>
+      <option value="MergedTimestampRegression">Merged timestamp regression</option>
+      <option value="StaleGhostEntityInMerged">Stale ghost entity in merged</option>
       <option value="BadStartTimeIntroduced">Bad start time introduced</option>
       <option value="FetchError">Fetch error</option>
     </select>

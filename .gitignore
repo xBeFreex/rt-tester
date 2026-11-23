@@ -10,3 +10,4 @@ obj/
 .grepout.txt
 deploy.sh
 .claude/
+reports/

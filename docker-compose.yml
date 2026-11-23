@@ -1,5 +1,14 @@
+# Container logs are capped at 3 x 50 MB per container; without a limit the
+# json-file driver grows without bound and fills the host disk.
+x-default-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "3"
+
 services:
   rt-tester:
+    logging: *default-logging
     image: ghcr.io/xbefreex/rt-tester:latest
     build: .
     container_name: rt-tester
